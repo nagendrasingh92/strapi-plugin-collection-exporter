@@ -1,0 +1,100 @@
+{
+  "name": "strapi-plugin-collection-exporter",
+  "version": "1.0.0",
+  "description": "Export collection data to CSV and Excel (XLSX) with advanced filtering, search, column selection, and pagination directly from the Strapi admin panel.",
+  "license": "MIT",
+  "author": {
+    "name": "Nagendra Singh Chauhan",
+    "email": "nagendra.chauhan2001@gmail.com",
+    "url": "https://github.com/nagendrasingh92"
+  },
+  "maintainers": [
+    {
+      "name": "Nagendra Singh Chauhan",
+      "email": "nagendra.chauhan2001@gmail.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nagendrasingh92/strapi-plugin-collection-exporter"
+  },
+  "homepage": "https://github.com/nagendrasingh92/strapi-plugin-collection-exporter#readme",
+  "bugs": {
+    "url": "https://github.com/nagendrasingh92/strapi-plugin-collection-exporter/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "name": "collection-exporter",
+    "displayName": "Collection Exporter",
+    "description": "Export collection data to CSV and Excel with filtering, search, and pagination.",
+    "kind": "plugin"
+  },
+  "type": "commonjs",
+  "exports": {
+    "./strapi-admin": {
+      "source": "./admin/src/index.tsx",
+      "types": "./dist/admin/src/index.d.ts",
+      "import": "./dist/admin/index.mjs",
+      "require": "./dist/admin/index.js",
+      "default": "./dist/admin/index.js"
+    },
+    "./strapi-server": {
+      "source": "./server/src/index.ts",
+      "types": "./dist/server/src/index.d.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.js",
+      "default": "./dist/server/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "strapi-server.js",
+    "strapi-admin.js"
+  ],
+  "scripts": {
+    "build": "strapi-plugin build",
+    "watch": "strapi-plugin watch",
+    "watch:link": "strapi-plugin watch:link",
+    "verify": "strapi-plugin verify"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@strapi/sdk-plugin": "^6.0.0",
+    "@strapi/strapi": "^5.40.0",
+    "@strapi/design-system": "^2.0.0-rc.14",
+    "@strapi/icons": "^2.0.0-rc.14",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "styled-components": "^6.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@strapi/strapi": "^5.0.0",
+    "@strapi/design-system": "^2.0.0-rc.14",
+    "@strapi/icons": "^2.0.0-rc.14",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "styled-components": "^6.0.0"
+  },
+  "keywords": [
+    "strapi",
+    "plugin",
+    "strapi-plugin",
+    "collection",
+    "export",
+    "csv",
+    "excel",
+    "xlsx",
+    "data-export",
+    "data-viewer",
+    "filter",
+    "search",
+    "pagination"
+  ]
+}
