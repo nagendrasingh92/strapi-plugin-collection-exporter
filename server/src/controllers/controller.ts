@@ -7,7 +7,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
   },
 
   async getCollectionData(ctx: any) {
-    const { uid, page = 1, pageSize = 10, search, startDate, endDate, sortBy, sortOrder = 'desc' } = ctx.query;
+    const { uid, page = 1, pageSize = 10, search, startDate, endDate, sortBy, sortOrder = 'desc', locale } = ctx.query;
 
     if (!uid) {
       return ctx.badRequest('uid query parameter is required');
@@ -23,11 +23,12 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
       endDate,
       sortBy,
       sortOrder,
+      locale,
     });
   },
 
   async exportCollectionData(ctx: any) {
-    const { uid, search, startDate, endDate, sortBy, sortOrder = 'desc' } = ctx.query;
+    const { uid, search, startDate, endDate, sortBy, sortOrder = 'desc', locale } = ctx.query;
 
     if (!uid) {
       return ctx.badRequest('uid query parameter is required');
@@ -41,6 +42,7 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
       endDate,
       sortBy,
       sortOrder,
+      locale,
     });
   },
 });

@@ -65,6 +65,9 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
   const [exporting, setExporting] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [allColumns, setAllColumns] = useState<string[]>([]);
+  const [isLocalized, setIsLocalized] = useState(false);
+  const [availableLocales, setAvailableLocales] = useState<string[]>([]);
+  const [locale, setLocale] = useState<string>('');
 
   // --- Helpers ---
 
@@ -174,8 +177,9 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
     if (endDate) params.set('endDate', endDate.toISOString());
     if (sortBy) params.set('sortBy', sortBy);
     if (sortOrder) params.set('sortOrder', sortOrder);
+    if (locale) params.set('locale', locale);
     return params;
-  }, [uid, search, startDate, endDate, sortBy, sortOrder]);
+  }, [uid, search, startDate, endDate, sortBy, sortOrder, locale]);
 
   const fetchExportData = async () => {
     const response = await get(`/${PLUGIN_ID}/export?${buildExportParams().toString()}`);
@@ -430,12 +434,25 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
         if (endDate) params.set('endDate', endDate.toISOString());
         if (sortBy) params.set('sortBy', sortBy);
         if (sortOrder) params.set('sortOrder', sortOrder);
+        if (locale) params.set('locale', locale);
 
         const response = await get(`/${PLUGIN_ID}/collection?${params.toString()}`);
 
         const respData = response.data;
         setData(respData.data || []);
         setMeta(respData.meta || { page: 1, pageSize: 10, pageCount: 0, total: 0 });
+
+        // Handle i18n info
+        if (respData.isLocalized !== undefined) {
+          setIsLocalized(respData.isLocalized);
+        }
+        if (respData.availableLocales) {
+          setAvailableLocales(respData.availableLocales);
+          // Auto-select first locale if none selected
+          if (!locale && respData.availableLocales.length > 0) {
+            setLocale(respData.availableLocales[0]);
+          }
+        }
 
         if (respData.attributes) {
           setAttributes(respData.attributes);
@@ -445,9 +462,11 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
             'createdAt',
             'updatedAt',
           ];
+          if (respData.isLocalized) {
+            cols.push('locale');
+          }
           const uniqueCols = cols.filter((col, i, arr) => arr.indexOf(col) === i);
           setAllColumns(uniqueCols);
-          // First load: select all columns
           if (selectedColumns.length === 0) {
             setSelectedColumns(uniqueCols);
           }
@@ -459,7 +478,7 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
         setLoading(false);
       }
     },
-    [get, uid, search, startDate, endDate, sortBy, sortOrder, pageSize]
+    [get, uid, search, startDate, endDate, sortBy, sortOrder, pageSize, locale]
   );
 
   useEffect(() => {
@@ -525,18 +544,22 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
           <Flex justifyContent="space-between" width="100%">
             <Flex gap={3} alignItems="center">
               <Modal.Title>
-                <Typography variant="omega" fontWeight="bold">
-                  {displayName}
+                <Typography variant="alpha" fontWeight="bold">
+                  Collection Exporter — {displayName}
                 </Typography>
               </Modal.Title>
               <Badge>{meta.total} entries</Badge>
             </Flex>
           </Flex>
         </Modal.Header>
-        <Modal.Body>
-          <Box paddingBottom={4}>
-            <Flex gap={3} wrap="wrap" alignItems="flex-end">
+        <Modal.Body style={{ padding: '8px 16px' }}>
+          <Box paddingBottom={2}>
+            {/* Row 1: Filters + Search button */}
+            <Flex gap={2} wrap="wrap" alignItems="flex-end" paddingBottom={2}>
               <Box style={{ flex: '1', minWidth: '200px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
+                  Search
+                </Typography>
                 <TextInput
                   placeholder="Search across all fields..."
                   value={searchInput}
@@ -549,6 +572,9 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
                 />
               </Box>
               <Box style={{ minWidth: '160px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
+                  Start Date
+                </Typography>
                 <DatePicker
                   onChange={(date: Date) => setStartDate(date)}
                   selectedDate={startDate}
@@ -556,12 +582,44 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
                 />
               </Box>
               <Box style={{ minWidth: '160px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
+                  End Date
+                </Typography>
                 <DatePicker
                   onChange={(date: Date) => setEndDate(date)}
                   selectedDate={endDate}
                   label="End Date"
                 />
               </Box>
+              {isLocalized && availableLocales.length > 0 && (
+                <Box style={{ minWidth: '120px' }}>
+                  <SingleSelect
+                    value={locale}
+                    onChange={(value: string) => setLocale(value)}
+                    label="Locale"
+                  >
+                    {availableLocales.map((loc) => (
+                      <SingleSelectOption key={loc} value={loc}>
+                        {loc}
+                      </SingleSelectOption>
+                    ))}
+                  </SingleSelect>
+                </Box>
+              )}
+              <Box style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="transparent" style={{ display: 'block', marginBottom: '4px' }}>
+                  &nbsp;
+                </Typography>
+                <Button onClick={handleSearch} variant="secondary" style={{ height: '40px' }}>
+                  Search
+                </Button>
+                <Button onClick={handleClearFilters} variant="tertiary" style={{ height: '40px' }}>
+                  Clear Filters
+                </Button>
+              </Box>
+            </Flex>
+            {/* Row 2: Actions */}
+            <Flex gap={2} wrap="wrap" alignItems="flex-end">
               <Box style={{ minWidth: '100px' }}>
                 <SingleSelect
                   value={pageSize}
@@ -574,12 +632,6 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
                   <SingleSelectOption value="100">100</SingleSelectOption>
                 </SingleSelect>
               </Box>
-              <Button onClick={handleSearch} variant="secondary">
-                Search
-              </Button>
-              <Button onClick={handleClearFilters} variant="tertiary">
-                Clear
-              </Button>
               {allColumns.length > 0 && (
                 <ColumnPicker
                   allColumns={allColumns}
@@ -592,32 +644,34 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
                 variant="secondary"
                 startIcon={<Download />}
                 disabled={exporting || meta.total === 0}
+                style={{ height: '40px' }}
               >
-                {exporting ? 'Exporting...' : 'CSV'}
+                {exporting ? 'Exporting...' : 'Export CSV'}
               </Button>
               <Button
                 onClick={handleExportExcel}
                 variant="secondary"
                 startIcon={<Download />}
                 disabled={exporting || meta.total === 0}
+                style={{ height: '40px' }}
               >
-                {exporting ? 'Exporting...' : 'Excel'}
+                {exporting ? 'Exporting...' : 'Export Excel'}
               </Button>
             </Flex>
           </Box>
 
           {loading ? (
-            <Flex justifyContent="center" padding={8}>
+            <Flex justifyContent="center" padding={4}>
               <Loader />
             </Flex>
           ) : data.length === 0 ? (
-            <Flex justifyContent="center" padding={8}>
+            <Flex justifyContent="center" padding={4}>
               <Typography variant="omega" textColor="neutral600">
                 No entries found
               </Typography>
             </Flex>
           ) : (
-            <Box style={{ overflow: 'auto', maxHeight: 'calc(90vh - 280px)' }}>
+            <Box style={{ overflow: 'auto', maxHeight: 'calc(90vh - 240px)' }}>
               <Table>
                 <Thead>
                   <Tr>
@@ -675,7 +729,7 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
           )}
 
           {meta.pageCount > 1 && (
-            <Box paddingTop={4}>
+            <Box paddingTop={2}>
               <Flex justifyContent="space-between" alignItems="center">
                 <Typography variant="pi" textColor="neutral600">
                   Showing {(meta.page - 1) * Number(pageSize) + 1} to{' '}

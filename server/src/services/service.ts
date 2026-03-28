@@ -9,6 +9,7 @@ interface GetCollectionDataParams {
   endDate?: string;
   sortBy?: string;
   sortOrder?: string;
+  locale?: string;
 }
 
 // Strapi system fields that are auto-managed — not user-defined content
@@ -28,7 +29,7 @@ const EXCLUDED_TYPES = ['password', 'dynamiczone', 'component'];
 const service = ({ strapi }: { strapi: Core.Strapi }) => ({
   getContentTypes() {
     const contentTypes = strapi.contentTypes;
-    const collectionTypes: Array<{ uid: string; displayName: string; attributes: Record<string, any> }> = [];
+    const collectionTypes: Array<{ uid: string; displayName: string; attributes: Record<string, any>; hasI18n: boolean }> = [];
 
     for (const [uid, contentType] of Object.entries(contentTypes)) {
       if (uid.startsWith('api::') && contentType.kind === 'collectionType') {
@@ -46,11 +47,33 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
           uid,
           displayName: contentType.info?.displayName || uid,
           attributes,
+          hasI18n: !!(contentType as any).pluginOptions?.i18n?.localized,
         });
       }
     }
 
     return collectionTypes;
+  },
+
+  /**
+   * Check if a content type has i18n enabled.
+   */
+  _isLocalized(contentType: any): boolean {
+    return !!(contentType.pluginOptions?.i18n?.localized);
+  },
+
+  /**
+   * Get all available locales from the i18n plugin.
+   */
+  async _getLocales(): Promise<string[]> {
+    try {
+      const localeService = strapi.plugin('i18n')?.service('locales');
+      if (!localeService) return [];
+      const locales = await localeService.find();
+      return locales.map((l: any) => l.code);
+    } catch {
+      return [];
+    }
   },
 
   /**
@@ -138,12 +161,14 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
     endDate,
     sortBy,
     sortOrder = 'desc',
+    locale,
   }: GetCollectionDataParams) {
     const contentType = strapi.contentTypes[uid as keyof typeof strapi.contentTypes];
     if (!contentType) {
       throw new Error(`Content type ${uid} not found`);
     }
 
+    const isLocalized = this._isLocalized(contentType);
     const filters = this._buildFilters(contentType, { search, startDate, endDate });
     const populate = this._getMediaPopulate(contentType);
 
@@ -161,10 +186,16 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
       offset: (page - 1) * pageSize,
     };
     if (populate) queryOptions.populate = populate;
+    if (isLocalized && locale) queryOptions.locale = locale;
 
     const entries = await strapi.documents(uid as any).findMany(queryOptions);
-    const total = await strapi.documents(uid as any).count({ filters });
+
+    const countOptions: any = { filters };
+    if (isLocalized && locale) countOptions.locale = locale;
+    const total = await strapi.documents(uid as any).count(countOptions);
+
     const attributes = this._getAllAttributes(contentType);
+    const availableLocales = isLocalized ? await this._getLocales() : [];
 
     return {
       data: this._sanitizeEntries(entries, contentType),
@@ -175,6 +206,8 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
         total,
       },
       attributes,
+      isLocalized,
+      availableLocales,
     };
   },
 
@@ -185,12 +218,14 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
     endDate,
     sortBy,
     sortOrder = 'desc',
+    locale,
   }: Omit<GetCollectionDataParams, 'page' | 'pageSize'>) {
     const contentType = strapi.contentTypes[uid as keyof typeof strapi.contentTypes];
     if (!contentType) {
       throw new Error(`Content type ${uid} not found`);
     }
 
+    const isLocalized = this._isLocalized(contentType);
     const filters = this._buildFilters(contentType, { search, startDate, endDate });
     const populate = this._getMediaPopulate(contentType);
     const attributes = this._getAllAttributes(contentType);
@@ -205,6 +240,10 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
     // Build headers: documentId + user-defined fields + timestamps (no duplicates)
     const userColumnKeys = Object.keys(attributes);
     const headers = ['documentId', ...userColumnKeys, 'createdAt', 'updatedAt'];
+    // Add locale column for i18n collections
+    if (isLocalized) {
+      headers.push('locale');
+    }
 
     const batchSize = 100;
     let offset = 0;
@@ -219,6 +258,7 @@ const service = ({ strapi }: { strapi: Core.Strapi }) => ({
         offset,
       };
       if (populate) queryOptions.populate = populate;
+      if (isLocalized && locale) queryOptions.locale = locale;
 
       batch = await strapi.documents(uid as any).findMany(queryOptions);
       allEntries = allEntries.concat(batch);
