@@ -4,6 +4,7 @@ import {
   Button,
   TextInput,
   DatePicker,
+  TimePicker,
   Table,
   Thead,
   Tbody,
@@ -20,7 +21,7 @@ import {
   SingleSelectOption,
 } from '@strapi/design-system';
 import { ArrowLeft, ArrowRight, Search, Download } from '@strapi/icons';
-import { useFetchClient } from '@strapi/strapi/admin';
+import { useFetchClient, useNotification } from '@strapi/strapi/admin';
 import { PLUGIN_ID } from '../pluginId';
 import { ColumnPicker } from './ColumnPicker';
 
@@ -45,6 +46,7 @@ const RELATION_TYPES = ['relation'];
 
 const DataModal = ({ uid, onClose }: DataModalProps) => {
   const { get } = useFetchClient();
+  const { toggleNotification } = useNotification();
 
   const [data, setData] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<Record<string, ColumnInfo>>({});
@@ -56,8 +58,14 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
   });
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedStartTime, setAppliedStartTime] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
+  const [appliedEndTime, setAppliedEndTime] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [pageSize, setPageSize] = useState('10');
@@ -70,6 +78,30 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
   const [locale, setLocale] = useState<string>('');
 
   // --- Helpers ---
+
+  const buildISODate = (date: string, time: string, isEnd: boolean): string | undefined => {
+    if (!date) return undefined;
+    const [year, month, day] = date.split('-').map(Number);
+    if (time) {
+      const [hours, minutes] = time.split(':').map(Number);
+      return new Date(year, month - 1, day, hours, minutes, 0).toISOString();
+    }
+    return isEnd
+      ? new Date(year, month - 1, day, 23, 59, 59, 999).toISOString()
+      : new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+  };
+
+  const getDateRangeError = (): string => {
+    if (startTime && !startDate) return 'Please select From Date when From Time is set';
+    if (endTime && !endDate) return 'Please select To Date when To Time is set';
+    if (endDate && !startDate) return 'Please select From Date first';
+    if (startDate && endDate) {
+      const start = buildISODate(startDate, startTime, false)!;
+      const end = buildISODate(endDate, endTime, true)!;
+      if (start > end) return 'To Date/Time must be after From Date/Time';
+    }
+    return '';
+  };
 
   const getBaseUrl = (): string => {
     return (window as any).strapi?.backendURL || '';
@@ -173,13 +205,15 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
     const params = new URLSearchParams();
     params.set('uid', uid);
     if (search) params.set('search', search);
-    if (startDate) params.set('startDate', startDate.toISOString());
-    if (endDate) params.set('endDate', endDate.toISOString());
+    const startISO = buildISODate(appliedStartDate, appliedStartTime, false);
+    const endISO = buildISODate(appliedEndDate, appliedEndTime, true);
+    if (startISO) params.set('startDate', startISO);
+    if (endISO) params.set('endDate', endISO);
     if (sortBy) params.set('sortBy', sortBy);
     if (sortOrder) params.set('sortOrder', sortOrder);
     if (locale) params.set('locale', locale);
     return params;
-  }, [uid, search, startDate, endDate, sortBy, sortOrder, locale]);
+  }, [uid, search, appliedStartDate, appliedStartTime, appliedEndDate, appliedEndTime, sortBy, sortOrder, locale]);
 
   const fetchExportData = async () => {
     const response = await get(`/${PLUGIN_ID}/export?${buildExportParams().toString()}`);
@@ -204,7 +238,7 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
       const name = uid.split('.').pop() || 'export';
       downloadFile(csv, `${name}_export.csv`, 'text/csv;charset=utf-8;');
     } catch (error) {
-      console.error('[CollectionExporter] CSV export failed:', error);
+      // silent
     } finally {
       setExporting(false);
     }
@@ -413,7 +447,7 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (error) {
-      console.error('[CollectionExporter] Excel export failed:', error);
+      // silent
     } finally {
       setExporting(false);
     }
@@ -430,8 +464,10 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
         params.set('page', String(page));
         params.set('pageSize', pageSize);
         if (search) params.set('search', search);
-        if (startDate) params.set('startDate', startDate.toISOString());
-        if (endDate) params.set('endDate', endDate.toISOString());
+        const startISO = buildISODate(appliedStartDate, appliedStartTime, false);
+        const endISO = buildISODate(appliedEndDate, appliedEndTime, true);
+        if (startISO) params.set('startDate', startISO);
+        if (endISO) params.set('endDate', endISO);
         if (sortBy) params.set('sortBy', sortBy);
         if (sortOrder) params.set('sortOrder', sortOrder);
         if (locale) params.set('locale', locale);
@@ -472,13 +508,13 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch collection data:', error);
+        // silent
         setData([]);
       } finally {
         setLoading(false);
       }
     },
-    [get, uid, search, startDate, endDate, sortBy, sortOrder, pageSize, locale]
+    [get, uid, search, appliedStartDate, appliedStartTime, appliedEndDate, appliedEndTime, sortBy, sortOrder, pageSize, locale]
   );
 
   useEffect(() => {
@@ -487,7 +523,18 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
 
   // --- UI handlers ---
 
-  const handleSearch = () => setSearch(searchInput);
+  const handleSearch = () => {
+    const error = getDateRangeError();
+    if (error) {
+      toggleNotification({ type: 'warning', message: error });
+      return;
+    }
+    setAppliedStartDate(startDate);
+    setAppliedStartTime(startTime);
+    setAppliedEndDate(endDate);
+    setAppliedEndTime(endTime);
+    setSearch(searchInput);
+  };
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
   };
@@ -495,8 +542,14 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
   const handleClearFilters = () => {
     setSearch('');
     setSearchInput('');
-    setStartDate(undefined);
-    setEndDate(undefined);
+    setStartDate('');
+    setStartTime('');
+    setEndDate('');
+    setEndTime('');
+    setAppliedStartDate('');
+    setAppliedStartTime('');
+    setAppliedEndDate('');
+    setAppliedEndTime('');
     setSortBy('createdAt');
     setSortOrder('desc');
   };
@@ -573,22 +626,82 @@ const DataModal = ({ uid, onClose }: DataModalProps) => {
               </Box>
               <Box style={{ minWidth: '160px' }}>
                 <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
-                  Start Date
+                  From Date
                 </Typography>
                 <DatePicker
-                  onChange={(date: Date) => setStartDate(date)}
-                  selectedDate={startDate}
-                  label="Start Date"
+                  onChange={(date: Date | undefined) => {
+                    if (date) {
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, '0');
+                      const d = String(date.getDate()).padStart(2, '0');
+                      const dateStr = `${y}-${m}-${d}`;
+                      if (endDate && dateStr > endDate) {
+                        toggleNotification({ type: 'warning', message: 'From Date cannot be after To Date' });
+                        return;
+                      }
+                      setStartDate(dateStr);
+                    }
+                  }}
+                  onClear={() => {
+                    setStartDate('');
+                    setStartTime('');
+                  }}
+                  value={startDate ? new Date(startDate + 'T12:00:00') : undefined}
+                  locale="en-GB"
+                  placeholder="DD/MM/YYYY"
+                  label="From Date"
+                />
+              </Box>
+              <Box style={{ minWidth: '120px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
+                  From Time
+                </Typography>
+                <TimePicker
+                  onChange={(time: string) => setStartTime(time)}
+                  value={startTime || undefined}
+                  label="From Time"
                 />
               </Box>
               <Box style={{ minWidth: '160px' }}>
                 <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
-                  End Date
+                  To Date
                 </Typography>
                 <DatePicker
-                  onChange={(date: Date) => setEndDate(date)}
-                  selectedDate={endDate}
-                  label="End Date"
+                  onChange={(date: Date | undefined) => {
+                    if (date) {
+                      if (!startDate) {
+                        toggleNotification({ type: 'warning', message: 'Please select From Date first' });
+                        return;
+                      }
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, '0');
+                      const d = String(date.getDate()).padStart(2, '0');
+                      const dateStr = `${y}-${m}-${d}`;
+                      if (dateStr < startDate) {
+                        toggleNotification({ type: 'warning', message: 'To Date cannot be before From Date' });
+                        return;
+                      }
+                      setEndDate(dateStr);
+                    }
+                  }}
+                  onClear={() => {
+                    setEndDate('');
+                    setEndTime('');
+                  }}
+                  value={endDate ? new Date(endDate + 'T12:00:00') : undefined}
+                  locale="en-GB"
+                  placeholder="DD/MM/YYYY"
+                  label="To Date"
+                />
+              </Box>
+              <Box style={{ minWidth: '120px' }}>
+                <Typography variant="pi" fontWeight="bold" textColor="neutral800" style={{ display: 'block', marginBottom: '4px' }}>
+                  To Time
+                </Typography>
+                <TimePicker
+                  onChange={(time: string) => setEndTime(time)}
+                  value={endTime || undefined}
+                  label="To Time"
                 />
               </Box>
               {isLocalized && availableLocales.length > 0 && (

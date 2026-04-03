@@ -1,6 +1,6 @@
 {
   "name": "strapi-plugin-collection-exporter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Export collection data to CSV and Excel (XLSX) with advanced filtering, search, column selection, and pagination directly from the Strapi admin panel.",
   "license": "MIT",
   "author": {
