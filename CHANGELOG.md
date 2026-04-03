@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-04-03
+
+### Added
+
+- TimePicker for start and end time filtering (From Time / To Time)
+- Date range validation with toast notifications using Strapi's useNotification
+- Toast warning when selecting To Date without From Date
+- Toast warning when From Date is after To Date or vice versa
+- Search filters only apply on Search button click (no auto-fetch on date/time change)
+
+### Changed
+
+- Date labels renamed from "Start Date / End Date" to "From Date / To Date"
+- Time labels use "From Time / To Time" naming
+- Date picker placeholder updated to DD/MM/YYYY format with en-GB locale
+- Removed console.log/error statements for clean production output
+
+### Fixed
+
+- Timezone offset: time picker values now correctly convert local time to UTC for API queries
+- DatePicker prop changed from deprecated `selectedDate` to `value`
+- Date state managed as strings to prevent Strapi DatePicker blur-clearing issues
+
 ## [1.1.0] - 2026-03-28
 
 ### Added

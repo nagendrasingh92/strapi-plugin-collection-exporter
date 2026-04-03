@@ -9,7 +9,7 @@ Export your Strapi collection data to **CSV** and **Excel (XLSX)** with advanced
 - **Export to Excel** — Download filtered data as a native XLSX file (no warning dialogs)
 - **Full Data Table** — View all entries in a responsive modal with all columns
 - **Global Search** — Search across all text fields (string, text, richtext, email)
-- **Date Range Filters** — Filter entries by creation date with start and end date pickers
+- **Date & Time Range Filters** — Filter entries by date and time with From/To pickers and validation
 - **Column Selection** — Choose which columns to display and export using the column picker
 - **Pagination** — Navigate through large datasets with configurable page sizes (10, 25, 50, 100)
 - **Column Sorting** — Click any column header to sort ascending or descending
@@ -60,7 +60,7 @@ npm run develop
 2. Click the **"CSV/Excel"** button in the list view actions area
 3. A modal opens displaying all entries with all columns
 4. Use the **search bar** to filter across all text fields
-5. Use **Start Date** and **End Date** pickers to filter by creation date
+5. Use **From Date/Time** and **To Date/Time** pickers to filter by date range
 6. Click column headers to **sort** data
 7. Use the **Columns** button to select which columns to display and export
 8. Use the **page size selector** to control how many entries are shown per page
